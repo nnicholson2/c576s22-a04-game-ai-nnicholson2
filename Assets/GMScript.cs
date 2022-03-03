@@ -86,6 +86,18 @@ public class GMScript : MonoBehaviour
         return newPiece;
     }
 
+    private Vector3Int[] CreateEnemyPiece(int midX, int maxY, int index)
+    {
+        var targetPiece = PIECES[index];
+        var newPiece = new Vector3Int[targetPiece.Length];
+        for (var i = 0; i < targetPiece.Length; i++)
+        {
+            newPiece[i].x = targetPiece[i].x + midX;
+            newPiece[i].y = targetPiece[i].y + maxY;
+        }
+        return newPiece;
+    }
+
 
 
     private void BlankABoard(Tilemap map,int x1, int y1, int x2, int y2)
@@ -130,7 +142,7 @@ public class GMScript : MonoBehaviour
 
         BlankAllBoards();
         _myPiece = CreateAPiece((_minBx + _maxBx)/2,_maxBy);
-        _enemyPiece = CreateAPiece((_minEx + _maxEx) / 2, _maxEy);
+        _enemyPiece = CreateEnemyPiece((_minEx + _maxEx) / 2, _maxEy, 5);
         if (!ValidPiece(_myPiece, true))
         {
             Debug.Log("NO VALID MOVES FROM START");
@@ -342,13 +354,14 @@ public class GMScript : MonoBehaviour
     {
         if (null == piece || null == chunk) return -GOOD_SCORE;
         var combined = drop ? DropPiece(piece,false).Concat(chunk).ToArray() : piece.Concat(chunk).ToArray();
-        
+
         var row = FindKillableRow(combined, _maxEx - _minEx + 1);
         if (row != NO_ROW)
         {
             Debug.Log("FOUND A LINE: ");
             return GOOD_SCORE; // LINE!
         }
+
         if (DEBUG_MODE) Debug.Log($"{combined.Average(p => p.y)}");//\n{ChunkToString(combined)}");
         return 100 * (int) (BOUNDS_MAX - combined.Average(p => p.y)); // HIGHEST SCORE = LOWEST AVERAGE 
     }
@@ -373,7 +386,19 @@ public class GMScript : MonoBehaviour
         Dirty = true;
         if (null == _enemyPiece)
         {
-            _enemyPiece = CreateAPiece((_minEx + _maxEx) / 2, _maxEy);
+            var trialP =  CreateEnemyPiece((_minEx + _maxEx) / 2, _maxEy, 0);
+            var retScore = EvaluateEnemyPieceScore(trialP, _enemyChunk);
+            for (var i = 0; i < PIECES.Length; i++) {
+                if (retScore != GOOD_SCORE) {
+                    trialP = CreateEnemyPiece((_minEx + _maxEx) / 2, _maxEy, i);
+                    retScore = EvaluateEnemyPieceScore(trialP, _enemyChunk);
+                } else if (retScore == GOOD_SCORE) {
+                    _enemyPiece = trialP;
+                } else {
+                    _enemyPiece = CreateEnemyPiece((_minEx + _maxEx) / 2, _maxEy, 5);
+                }
+            }
+            
             if (!ValidPiece(_enemyPiece, false))
             {
                 if (DEBUG_MODE) Debug.Log("ENEMY DEAD");
